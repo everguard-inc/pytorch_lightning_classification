@@ -34,6 +34,6 @@ if __name__ == "__main__":
         weights_summary='top',
     )
 
-    train_loader, valid_loader = get_train_val_data(Config.images_path,'*.jpeg')
+    train_loader, valid_loader = get_train_val_data(Config.images_path,Config.image_extension)
 
     trainer.fit(lit_model, train_dataloader=train_loader, val_dataloaders=valid_loader)
