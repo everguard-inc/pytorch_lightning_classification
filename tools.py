@@ -14,6 +14,7 @@ from albumentations.core.composition import Compose, OneOf
 from albumentations.pytorch import ToTensorV2
 from efficientnet_pytorch import EfficientNet
 from config import Config
+import torchvision.models as models
 
 from sklearn.model_selection import StratifiedKFold
 
@@ -49,8 +50,7 @@ class CustomDataset(Dataset):
 def get_train_val_data(images_path,exstension = '*.jpeg'):
     images_list = list(find_files(images_path, exstension))
     random.shuffle(images_list)
-    images_list = images_list[:1000]
-
+    #images_list = images_list[:250]
     df = pd.DataFrame([])
 
     for path in images_list:
@@ -81,12 +81,16 @@ def get_transform(phase: str):
     if phase == 'train':
         return Compose([
             A.RandomResizedCrop(height=Config.img_size, width=Config.img_size),
-            A.HorizontalFlip(p=0.3),
-            A.ShiftScaleRotate(p=0.3),
+            A.HorizontalFlip(p=0.5),
+            A.ShiftScaleRotate(p=0.5),
             A.GaussNoise(p = 0.3),
             A.RandomBrightnessContrast(p=0.3),
+            A.RandomFog(p=0.3),
+            A.Rotate(p=1, limit=90),
+            A.VerticalFlip(p=0.5),
+            A.RandomContrast(limit=0.5, p = 1),
             A.Normalize(),
-            ToTensorV2(),
+            ToTensorV2()
         ])
     else:
         return Compose([
@@ -99,14 +103,18 @@ def get_transform(phase: str):
 class CustomModel(nn.Module):
     def __init__(self, model_name='efficientnet-b3', pretrained=True):
         super().__init__()
-        if pretrained:
-            self.model = EfficientNet.from_pretrained(model_name)
+        if 'efficientnet' in model_name:
+            if pretrained:
+                self.model = EfficientNet.from_pretrained(model_name)
+            else:
+                self.model = EfficientNet.from_name(model_name)
+            for param in self.model.parameters():
+                param.requires_grad = True
+            in_features = self.model._fc.in_features
+            self.model._fc = nn.Linear(in_features, Config.num_classes)
         else:
-            self.model = EfficientNet.from_name(model_name)
-        for param in self.model.parameters():
-            param.requires_grad = True
-        in_features = self.model._fc.in_features
-        self.model._fc = nn.Linear(in_features, Config.num_classes)
+            self.model = models.resnet50(pretrained=True)
+            self.model.fc.out_features = Config.num_classes
 
     def forward(self, x):
         x = self.model(x)
@@ -129,8 +137,8 @@ class TrainModule(pl.LightningModule):
         return {'optimizer': self.optimizer, 'lr_scheduler': self.scheduler}
 
     def training_step(self, batch, batch_idx):
-        image = batch['image']
-        target = batch['target']
+        image = batch['image'].to(Config.device)
+        target = batch['target'].to(Config.device)
         target = target.long()
         output = self.model(image)
         loss = self.criterion(output, target)
@@ -143,8 +151,8 @@ class TrainModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        image = batch['image']
-        target = batch['target']
+        image = batch['image'].to(Config.device)
+        target = batch['target'].to(Config.device)
         target = target.long()
         output = self.model(image)
         loss = self.criterion(output, target)
@@ -155,7 +163,3 @@ class TrainModule(pl.LightningModule):
             on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
         return loss
-
-
-
-

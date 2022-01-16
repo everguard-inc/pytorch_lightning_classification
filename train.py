@@ -12,6 +12,7 @@ seed_everything(Config.seed)
 if __name__ == "__main__":
 
     model = CustomModel(model_name=Config.model_name, pretrained=Config.pretrained)
+    model = model.to(Config.device)
     lit_model = TrainModule(model)
     logger = CSVLogger(save_dir=Config.save_dir, name=Config.model_name)
     logger.log_hyperparams(Config.__dict__)
@@ -19,7 +20,7 @@ if __name__ == "__main__":
                                         save_top_k=1,
                                         save_last=True,
                                         save_weights_only=True,
-                                        filename='checkpoint/{epoch:02d}-{valid_f1:.4f}',
+                                        filename='best',
                                         verbose=False,
                                         mode='max')
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
         gpus=1,
         accumulate_grad_batches=Config.accum,
         precision=Config.precision,
-        callbacks=[EarlyStopping(monitor='valid_loss', patience=3, mode='min')],
+        callbacks=[EarlyStopping(monitor='valid_loss', patience=8, mode='min')],
         checkpoint_callback=checkpoint_callback,
         logger=logger,
         weights_summary='top',
