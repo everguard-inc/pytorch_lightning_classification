@@ -21,7 +21,7 @@ class CustomDataset(Dataset):
     def __init__(self, df, path, transform=None):
         self.df = df
         self.path = path
-        self.images_path = os.listdir(path)[:5000]
+        self.images_path = os.listdir(path)
         self.transform = transform
 
     def __len__(self):
