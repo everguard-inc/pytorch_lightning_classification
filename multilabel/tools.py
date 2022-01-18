@@ -17,12 +17,11 @@ import torchvision.models as models
 from copy import deepcopy
 
 
-
 class CustomDataset(Dataset):
     def __init__(self, df, path, transform=None):
         self.df = df
         self.path = path
-        self.images_path = os.listdir(path)
+        self.images_path = os.listdir(path)[:10000]
         self.transform = transform
 
     def __len__(self):
@@ -63,6 +62,7 @@ class CustomDataset(Dataset):
         augmented = self.transform(image=image)
         image = augmented['image']
         return {'image':image, 'target': labels}
+
 
 def get_train_val_data():
     train_df = pd.read_csv(Config.train_df_path)
@@ -135,7 +135,10 @@ class TrainModule(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        if Config.optimizer == "Adam":
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        elif Config.optimizer == "SGD":
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=Config.t_max, eta_min=Config.min_lr)
 
         return {'optimizer': self.optimizer, 'lr_scheduler': self.scheduler}
@@ -151,7 +154,7 @@ class TrainModule(pl.LightningModule):
         if batch_idx==0:
             self.reset_metrics()
         self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
-        score = self.get_average_score(self.metrics,self.f1_metrics)
+        score,self.f1_metrics = self.get_average_score(self.metrics,self.f1_metrics)
         logs = {'train_loss': loss, 'train_f1': score, 'lr': self.optimizer.param_groups[0]['lr']}
         self.log_dict(
             logs,
@@ -159,6 +162,8 @@ class TrainModule(pl.LightningModule):
         )
         if batch_idx == Config.num_train_batches-1:
             self.metrics_file.write(f"train epoch {self.current_epoch}: {self.f1_metrics}\n")
+            for i in range(len(self.f1_metrics)):
+                Config.neptune_run_object['/'.join(['metrics', 'train',Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -172,7 +177,7 @@ class TrainModule(pl.LightningModule):
         if batch_idx==0:
             self.reset_metrics()
         self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
-        score = self.get_average_score(self.metrics,self.f1_metrics)
+        score,self.f1_metrics = self.get_average_score(self.metrics,self.f1_metrics)
         logs = {'valid_loss': loss, 'valid_f1': score}
         self.log_dict(
             logs,
@@ -180,6 +185,8 @@ class TrainModule(pl.LightningModule):
         )
         if batch_idx == Config.num_val_batches-1:
             self.metrics_file.write(f"val epoch {self.current_epoch}: {self.f1_metrics}\n")
+            for i in range(len(self.f1_metrics)):
+                Config.neptune_run_object['/'.join(['metrics', 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
 
         return loss
 
@@ -212,4 +219,4 @@ class TrainModule(pl.LightningModule):
         for l in f1_mean_labels:
             mean+=f1_metrics[l]
 
-        return mean/len(f1_mean_labels)
+        return mean/len(f1_mean_labels),f1_metrics

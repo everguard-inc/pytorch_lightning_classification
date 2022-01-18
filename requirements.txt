@@ -1,0 +1,7 @@
+pytorch-lightning
+torch
+neptune-client
+asyncio
+opencv-python
+albumentations
+efficientnet_pytorch
