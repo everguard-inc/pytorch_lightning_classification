@@ -1,2 +1,0 @@
-# pytorch_lightning_classification
-Multiclass classification with PyTorch Lightning
