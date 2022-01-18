@@ -2,3 +2,5 @@ multilabel/logs/
 multiclass/logs/
 __pycache__/
 .ipynb_checkpoints
+multilabel/metrics.txt
+multiclass/metrics.txt

@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import pandas as pd
 import numpy as np
 import cv2
@@ -80,13 +81,9 @@ def get_transform(phase: str):
         return Compose([
             A.Resize(height=Config.img_size['height'], width=Config.img_size['width']),
             A.HorizontalFlip(p=0.5),
-            A.ShiftScaleRotate(p=0.5),
-            A.GaussNoise(p = 0.3),
-            A.RandomBrightnessContrast(p=0.3),
+            A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.35, 0.1), contrast_limit=(-0.2, 0.5), brightness_by_max=True),
+            A.HueSaturationValue(always_apply=False, p=0.5, hue_shift_limit=(-5, 9), sat_shift_limit=(-30, 30), val_shift_limit=(-20, 20)),
             A.RandomFog(p=0.3),
-            A.Rotate(p=1, limit=90),
-            A.VerticalFlip(p=0.5),
-            A.RandomContrast(limit=0.5, p = 1),
             A.Normalize(),
             ToTensorV2()
         ])
@@ -123,7 +120,8 @@ class TrainModule(pl.LightningModule):
         self.model = model
         self.criterion = nn.BCELoss()
         self.lr = Config.lr
-        self.metrics_file = open(Config.metrics_file, 'a')
+        
+        self.metrics_file = open(os.path.join(Config.save_log_dir,Config.metrics_file), 'a')
         self.reset_metrics()
         
     def reset_metrics(self):
@@ -137,12 +135,13 @@ class TrainModule(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=Config.t_max, eta_min=Config.min_lr)
 
         return {'optimizer': self.optimizer, 'lr_scheduler': self.scheduler}
 
     def training_step(self, batch, batch_idx):
+        
         image = batch['image'].to(Config.device)
         target = batch['target'].to(Config.device)
         target = target.float()
@@ -206,6 +205,11 @@ class TrainModule(pl.LightningModule):
         for i in range(Config.num_classes):
             pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
             recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
-            f1_metrics[i] = 2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9)   
+            f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),2)   
 
-        return np.mean(f1_metrics)
+        f1_mean_labels = [0,1,3,4,6,7,9,10]
+        mean = 0
+        for l in f1_mean_labels:
+            mean+=f1_metrics[l]
+
+        return mean/len(f1_mean_labels)
