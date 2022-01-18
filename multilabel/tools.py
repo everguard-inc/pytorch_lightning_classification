@@ -190,12 +190,15 @@ class TrainModule(pl.LightningModule):
             target_labels = targets[i]
             target_labels = (target_labels > conf_th).nonzero().squeeze()
             predicted_labels = (predicted_labels > conf_th).nonzero().squeeze()
-            for label in predicted_labels:
-                if label in target_labels:
-                    metrics[label]['tp']+=1
-                else:
-                    metrics[label]['fp']+=1
-                    metrics[label]['fn']+=1
+            try:
+                for label in predicted_labels:
+                    if label in target_labels:
+                        metrics[label]['tp']+=1
+                    else:
+                        metrics[label]['fp']+=1
+                        metrics[label]['fn']+=1
+            except:
+                ...
 
         return metrics
                 
