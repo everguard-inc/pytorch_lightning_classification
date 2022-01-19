@@ -14,6 +14,7 @@ from albumentations.pytorch import ToTensorV2
 from efficientnet_pytorch import EfficientNet
 from config import Config
 import torchvision.models as models
+from madgrad import MADGRAD
 from copy import deepcopy
 
 
@@ -83,7 +84,6 @@ def get_transform(phase: str):
             A.HorizontalFlip(p=0.5),
             A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.35, 0.1), contrast_limit=(-0.2, 0.5), brightness_by_max=True),
             A.HueSaturationValue(always_apply=False, p=0.5, hue_shift_limit=(-5, 9), sat_shift_limit=(-30, 30), val_shift_limit=(-20, 20)),
-            A.RandomFog(p=0.3),
             A.Normalize(),
             ToTensorV2()
         ])
@@ -139,6 +139,9 @@ class TrainModule(pl.LightningModule):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         elif Config.optimizer == "SGD":
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        elif Config.optimizer == "Madgrad":
+            self.optimizer = MADGRAD(self.model.parameters(),lr=self.lr)
+
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=Config.t_max, eta_min=Config.min_lr)
 
         return {'optimizer': self.optimizer, 'lr_scheduler': self.scheduler}

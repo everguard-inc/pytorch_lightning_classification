@@ -31,8 +31,5 @@ if __name__ == "__main__":
                 targets.append(t)
 
     metrics = list(f1_score(targets, predicts, average=None))
-    #metrics_file = open('metrics.txt', 'w')
     for i, f1 in enumerate(metrics):
         print(Config.label_names[i], ' = ',f1.round(2))
-        #metrics_file.write(Config.label_names[i] + ' = ' + str(f1.round(2)) + '\n')
-    #metrics_file.close()

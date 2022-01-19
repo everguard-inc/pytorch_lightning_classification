@@ -26,7 +26,7 @@ class Config:
     conf_th = 0.5
     num_train_batches = None
     num_val_batches = None
-    optimizer = "Adam"
+    optimizer = "Madgrad"
     neptune_run_object = None
     neptune_api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJlNzQxODFlNy02YmQ4LTQ5MzQtOWE3OC04NTQ0MTRkNDljMjYifQ=="
     weights_path = 'logs/resnet50/version_0/checkpoints/epoch=22-step=43906.ckpt'

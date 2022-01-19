@@ -41,9 +41,6 @@ if __name__ == "__main__":
                                         verbose=False,
                                         mode='max')
                                         
-
-    
-
     trainer = Trainer(
         max_epochs=Config.num_epochs,
         gpus=1,
