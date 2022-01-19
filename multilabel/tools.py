@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import albumentations as A
 import pytorch_lightning as pl
-import matplotlib.pyplot as plt
 import os
 from torch.utils.data import Dataset, DataLoader
 from albumentations.core.composition import Compose
@@ -22,7 +21,7 @@ class CustomDataset(Dataset):
     def __init__(self, df, path, transform=None):
         self.df = df
         self.path = path
-        self.images_path = os.listdir(path)[:10000]
+        self.images_path = os.listdir(path)
         self.transform = transform
 
     def __len__(self):
@@ -79,14 +78,7 @@ def get_train_val_data():
 
 def get_transform(phase: str):
     if phase == 'train':
-        return Compose([
-            A.Resize(height=Config.img_size['height'], width=Config.img_size['width']),
-            A.HorizontalFlip(p=0.5),
-            A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.35, 0.1), contrast_limit=(-0.2, 0.5), brightness_by_max=True),
-            A.HueSaturationValue(always_apply=False, p=0.5, hue_shift_limit=(-5, 9), sat_shift_limit=(-30, 30), val_shift_limit=(-20, 20)),
-            A.Normalize(),
-            ToTensorV2()
-        ])
+        return Config.train_augs[Config.augs_index]
     else:
         return Compose([
             A.Resize(height=Config.img_size['height'], width=Config.img_size['width']),
@@ -95,7 +87,7 @@ def get_transform(phase: str):
         ])
     
 class CustomModel(nn.Module):
-    def __init__(self, model_name='efficientnet-b3', pretrained=True):
+    def __init__(self, model_name, pretrained):
         super().__init__()
         if 'efficientnet' in model_name:
             if pretrained:
@@ -108,7 +100,10 @@ class CustomModel(nn.Module):
             self.model._fc = nn.Linear(in_features, Config.num_classes)
         else:
             self.model = models.resnet50(pretrained=True)
-            self.model.fc.out_features = Config.num_classes
+            in_features = self.model.fc.in_features
+            self.model.fc = nn.Linear(in_features, Config.num_classes)
+            for param in self.model.parameters():
+                param.requires_grad = True
 
     def forward(self, x):
         x = self.model(x)

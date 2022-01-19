@@ -12,12 +12,10 @@ def get_cur_time():
 seed_everything(Config.seed)
 
 if __name__ == "__main__":
-
     run = neptune.init(
-    project="vova.xnz/MultilabelClassifierRLG",
+    project="ever/rlg",
     api_token=Config.neptune_api_token
     )
-
     run['train_date'] = get_cur_time()
     run['model_name'] = Config.model_name
     run['input_height'] = Config.img_size['height']
@@ -35,7 +33,7 @@ if __name__ == "__main__":
     lit_model = TrainModule(model)
     checkpoint_callback = ModelCheckpoint(monitor='valid_f1',
                                         save_top_k=1,
-                                        save_last=True,
+                                        save_last=False,
                                         save_weights_only=True,
                                         filename='best',
                                         verbose=False,
@@ -46,7 +44,7 @@ if __name__ == "__main__":
         gpus=1,
         accumulate_grad_batches=Config.accum,
         precision=Config.precision,
-        callbacks=[EarlyStopping(monitor='valid_f1', patience=10, mode='max')],
+        callbacks=[EarlyStopping(monitor='valid_loss', patience=10, mode='min')],
         checkpoint_callback=checkpoint_callback,
         logger=logger,
         weights_summary='top',
