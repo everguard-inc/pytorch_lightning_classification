@@ -14,15 +14,23 @@ from efficientnet_pytorch import EfficientNet
 from config import Config
 import torchvision.models as models
 from madgrad import MADGRAD
+import random
 from copy import deepcopy
 
+def generate_percent(prob = 10):
+    if random.randint(0,100) < prob:
+        return True
+    else:
+        return False
 
 class CustomDataset(Dataset):
-    def __init__(self, df, path, transform=None):
+    def __init__(self, df, path, transform = None, unrecognized_transform = None, train = True):
         self.df = df
         self.path = path
         self.images_path = os.listdir(path)
         self.transform = transform
+        self.unrecognized_transform = unrecognized_transform
+        self.train = train
 
     def __len__(self):
         return len(self.images_path)
@@ -53,12 +61,35 @@ class CustomDataset(Dataset):
                     break
         return labels_ints
 
+    @staticmethod
+    def change_labels(labels):
+        new_labels = []
+        for l in labels:
+            if l=='in_harness' or l=='not_in_harness':
+                new_labels.append('harness_unrecognized')
+            elif l=='in_hardhat' or l=='not_in_hardhat':
+                new_labels.append('hardhat_unrecognized')
+            elif l=='in_vest' or l=='not_in_vest':
+                new_labels.append('vest_unrecognized')
+            elif l=='person_in_bucket' or l=='person_not_in_bucket':
+                new_labels.append(l)
+            else:
+                new_labels.append(l)
+            
+        return new_labels
+
     def __getitem__(self, idx):
         labels = self.df[self.df['image_path']==os.path.join(self.path.split('/')[-1],self.images_path[idx])][['harness','hardhat','vest','person_in_bucket']].values.squeeze()
-        labels = CustomDataset.labels_string_to_int(labels)
-        labels = CustomDataset.encode_labels(labels,Config.num_classes)
         image = cv2.imread(os.path.join(self.path,self.images_path[idx]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.train:
+            if generate_percent():
+                labels = CustomDataset.change_labels(labels)
+                augmented = self.unrecognized_transform(image=image)
+                image = augmented['image']
+
+        labels = CustomDataset.labels_string_to_int(labels)
+        labels = CustomDataset.encode_labels(labels,Config.num_classes)
         augmented = self.transform(image=image)
         image = augmented['image']
         return {'image':image, 'target': labels}
@@ -68,13 +99,16 @@ def get_train_val_data():
     train_df = pd.read_csv(Config.train_df_path)
     val_df = pd.read_csv(Config.val_df_path)
 
-    train_dataset = CustomDataset(train_df, Config.train_images_path, get_transform('train'))
-    valid_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'))
+    train_dataset = CustomDataset(train_df, Config.train_images_path, get_transform('train'),get_unrecognized_transform(),True)
+    valid_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'),None, False)
 
     train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
     valid_loader = DataLoader(valid_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4)
 
     return train_loader, valid_loader
+
+def get_unrecognized_transform():
+    return Config.unrecognized_augs
 
 def get_transform(phase: str):
     if phase == 'train':
@@ -212,7 +246,7 @@ class TrainModule(pl.LightningModule):
             recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
             f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),2)   
 
-        f1_mean_labels = [0,1,3,4,6,7,9,10]
+        f1_mean_labels = [1,4,7]
         mean = 0
         for l in f1_mean_labels:
             mean+=f1_metrics[l]

@@ -44,7 +44,7 @@ if __name__ == "__main__":
         gpus=1,
         accumulate_grad_batches=Config.accum,
         precision=Config.precision,
-        callbacks=[EarlyStopping(monitor='valid_loss', patience=10, mode='min')],
+        callbacks=[EarlyStopping(monitor='valid_f1', patience=15, mode='max')],
         checkpoint_callback=checkpoint_callback,
         logger=logger,
         weights_summary='top',
