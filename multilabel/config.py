@@ -2,13 +2,12 @@ import torch
 import albumentations as A
 from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
-from torchvision.transforms import AutoAugment
 
 class Config:
-    train_images_path = '/home/rodion/crops/dataset_ppe/crops/train'
-    val_images_path = '/home/rodion/crops/dataset_ppe/crops/val'
-    train_df_path = '/home/rodion/crops/dataset_ppe/ann/train.csv'
-    val_df_path = '/home/rodion/crops/dataset_ppe/ann/val.csv'
+    train_images_path = '/home/ubuntu/dataset_ppe/crops/train'
+    val_images_path = '/home/ubuntu/dataset_ppe/crops/val'
+    train_df_path = '/home/ubuntu/dataset_ppe/ann/train.csv'
+    val_df_path = '/home/ubuntu/dataset_ppe/ann/val.csv'
     save_dir = 'logs/'
     save_log_dir = None
     metrics_file = 'metrics.txt'
@@ -37,14 +36,15 @@ class Config:
     augs_index = 0
     unrecognized_augs = Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
-            A.Downscale(p=0.5)        
+            A.RandomSunFlare(flare_roi=(0.3, 0.1, 0.7, 0.3),angle_lower=0,angle_upper=0.2,num_flare_circles_lower=1,num_flare_circles_upper=5, src_radius=150,src_color=(255, 255, 255),always_apply=False,p=1), 
+            A.Downscale(p=1)     
         ])
 
     train_augs = [
         Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
             A.HorizontalFlip(p=0.5),
-            A.RandomBrightnessContrast(brightness_limit=0.4,contrast_limit=0.4,brightness_by_max=True,always_apply=False,p=0.5),
+            A.MedianBlur(always_apply=False, p=0.5, blur_limit=(11, 21)),
             A.Normalize(),
             ToTensorV2(),
         ]),

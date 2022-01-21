@@ -65,14 +65,8 @@ class CustomDataset(Dataset):
     def change_labels(labels):
         new_labels = []
         for l in labels:
-            if l=='in_harness' or l=='not_in_harness':
-                new_labels.append('harness_unrecognized')
-            elif l=='in_hardhat' or l=='not_in_hardhat':
+            if l=='in_hardhat' or l=='not_in_hardhat':
                 new_labels.append('hardhat_unrecognized')
-            elif l=='in_vest' or l=='not_in_vest':
-                new_labels.append('vest_unrecognized')
-            elif l=='person_in_bucket' or l=='person_not_in_bucket':
-                new_labels.append(l)
             else:
                 new_labels.append(l)
             
@@ -244,7 +238,7 @@ class TrainModule(pl.LightningModule):
         for i in range(Config.num_classes):
             pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
             recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
-            f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),2)   
+            f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3)   
 
         f1_mean_labels = [1,4,7]
         mean = 0
