@@ -21,7 +21,7 @@ if __name__ == "__main__":
     run['input_height'] = Config.img_size['height']
     run['input_width'] =  Config.img_size['width']
     run['labels'] = Config.label_names
-    run['augmentations_configs'] = str(get_transform('train'))
+    run['augmentations_configs'] = str(get_transform('unrecognized_augs'))+str(get_transform('train'))
 
     Config.neptune_run_object = run
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         gpus=1,
         accumulate_grad_batches=Config.accum,
         precision=Config.precision,
-        callbacks=[EarlyStopping(monitor='valid_f1', patience=15, mode='max')],
+        callbacks=[EarlyStopping(monitor='valid_f1', patience=20, mode='max')],
         checkpoint_callback=checkpoint_callback,
         logger=logger,
         weights_summary='top',

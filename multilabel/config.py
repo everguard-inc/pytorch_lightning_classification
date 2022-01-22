@@ -36,15 +36,17 @@ class Config:
     augs_index = 0
     unrecognized_augs = Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
-            A.RandomSunFlare(flare_roi=(0.3, 0.1, 0.7, 0.3),angle_lower=0,angle_upper=0.2,num_flare_circles_lower=1,num_flare_circles_upper=5, src_radius=150,src_color=(255, 255, 255),always_apply=False,p=1), 
-            A.Downscale(p=1)     
+            A.RandomSunFlare(flare_roi=(0.3, 0.1, 0.7, 0.3),angle_lower=0,angle_upper=0.2,num_flare_circles_lower=1,num_flare_circles_upper=5, src_radius=200,src_color=(255, 255, 255),always_apply=False,p=1), 
+            A.Downscale(p=1)  
         ])
 
     train_augs = [
         Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
             A.HorizontalFlip(p=0.5),
-            A.MedianBlur(always_apply=False, p=0.5, blur_limit=(11, 21)),
+            A.HueSaturationValue(always_apply=False, p=0.33, hue_shift_limit=(-5, 5), sat_shift_limit=(-5, 5), val_shift_limit=(-150, 150)),
+            A.ElasticTransform(always_apply=False, p=0.1, alpha=4, sigma=100, alpha_affine=10, interpolation=1, border_mode=1),
+            A.MedianBlur(always_apply=False, p=0.25, blur_limit=(11, 21)),
             A.Normalize(),
             ToTensorV2(),
         ]),

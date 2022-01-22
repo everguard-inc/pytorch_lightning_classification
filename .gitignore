@@ -7,3 +7,7 @@ multiclass/metrics.txt
 multilabel/.neptune/async
 multilabel/augs.ipynb
 multilabel/rlg.csv
+multilabel/rlg_results.csv
+multilabel/augs_examples
+multilabel/.neptune
+.ipynb_checkpoints
