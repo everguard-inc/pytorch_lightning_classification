@@ -1,8 +1,10 @@
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from tools import CustomModel, TrainModule, get_train_val_data, get_transform
+from tools import CustomModel, TrainModule, get_train_test_datasets, \
+    get_train_val_dataloaders, get_test_dataloader, get_transform
 from config import Config
+from sklearn.model_selection import KFold
 import neptune.new as neptune
 from datetime import datetime
 
@@ -24,36 +26,31 @@ if __name__ == "__main__":
     run['augmentations_configs'] = str(get_transform('unrecognized_augs'))+str(get_transform('train'))
 
     Config.neptune_run_object = run
+    kf = KFold(n_splits=Config.num_kfolds,shuffle=True)
 
-    model = CustomModel(model_name=Config.model_name, pretrained=Config.pretrained)
-    model = model.to(Config.device)
-    logger = CSVLogger(save_dir=Config.save_dir, name=Config.model_name)
-    logger.log_hyperparams(Config.__dict__)
-    Config.save_log_dir = logger.log_dir
-    lit_model = TrainModule(model)
-    checkpoint_callback = ModelCheckpoint(monitor='valid_f1',
-                                        save_top_k=1,
-                                        save_last=False,
-                                        save_weights_only=True,
-                                        filename='best',
-                                        verbose=False,
-                                        mode='max')
-                                        
-    trainer = Trainer(
-        max_epochs=Config.num_epochs,
-        gpus=1,
-        accumulate_grad_batches=Config.accum,
-        precision=Config.precision,
-        callbacks=[EarlyStopping(monitor='valid_f1', patience=20, mode='max')],
-        checkpoint_callback=checkpoint_callback,
-        logger=logger,
-        weights_summary='top',
-    )
-    train_loader, valid_loader = get_train_val_data()
+    train_dataset, test_dataset = get_train_test_datasets()
 
-    Config.num_train_batches = len(train_loader)
-    Config.num_val_batches = len(valid_loader)
+    for fold, (train_ids, test_ids) in enumerate(kf.split(train_dataset)):
+        train_loader, val_loader = get_train_val_dataloaders(train_dataset, train_ids, test_ids)
+        Config.current_fold = fold
+        model = CustomModel(model_name=Config.model_name, pretrained=Config.pretrained)
+        model = model.to(Config.device)
+        logger = CSVLogger(save_dir=Config.save_dir, name=Config.model_name)
+        logger.log_hyperparams(Config.__dict__)
+        Config.save_log_dir = logger.log_dir
+        lit_model = TrainModule(model)                                    
+        trainer = Trainer(
+            max_epochs=Config.num_epochs,
+            gpus=1,
+            accumulate_grad_batches=Config.accum,
+            precision=Config.precision,
+            callbacks=[EarlyStopping(monitor='valid_f1', patience=20, mode='max')],
+            logger=logger,
+            weights_summary='top',
+        )
+        Config.num_train_batches = len(train_loader)
+        Config.num_val_batches = len(val_loader)
 
-    trainer.fit(lit_model, train_dataloader=train_loader, val_dataloaders=valid_loader)
+        trainer.fit(lit_model, train_dataloader=train_loader, val_dataloaders=val_loader)
 
     run.stop()

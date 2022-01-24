@@ -89,17 +89,29 @@ class CustomDataset(Dataset):
         return {'image':image, 'target': labels}
 
 
-def get_train_val_data():
+def get_train_test_datasets():
     train_df = pd.read_csv(Config.train_df_path)
     val_df = pd.read_csv(Config.val_df_path)
 
     train_dataset = CustomDataset(train_df, Config.train_images_path, get_transform('train'),get_unrecognized_transform(),True)
-    valid_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'),None, False)
+    test_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'),None, False)
 
-    train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4)
+    return train_dataset, test_dataset
 
-    return train_loader, valid_loader
+def get_train_val_dataloaders(train_dataset, train_ids, test_ids):
+    train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
+    test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
+
+    train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4, sampler=train_subsampler)
+    valid_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4, sampler=test_subsampler)
+    
+    return train_loader,valid_loader
+
+def get_test_dataloader(test_dataset):
+    test_loader = DataLoader(test_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4)
+
+    return test_loader
+
 
 def get_unrecognized_transform():
     return Config.unrecognized_augs
@@ -124,6 +136,7 @@ class CustomModel(nn.Module):
                 self.model = EfficientNet.from_name(model_name)
             for param in self.model.parameters():
                 param.requires_grad = True
+            self.model = EfficientNet.from_name('efficientnet-b3')
             in_features = self.model._fc.in_features
             self.model._fc = nn.Linear(in_features, Config.num_classes)
         else:
@@ -200,6 +213,7 @@ class TrainModule(pl.LightningModule):
         output = self.model(image)
         output = torch.sigmoid(output)
         loss = self.criterion(output, target)
+        
         if batch_idx==0:
             self.reset_metrics()
         self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
@@ -211,8 +225,9 @@ class TrainModule(pl.LightningModule):
         )
         if batch_idx == Config.num_val_batches-1:
             self.metrics_file.write(f"val epoch {self.current_epoch}: {self.f1_metrics}\n")
+            torch.save(self.model.state_dict(), f'{Config.save_log_dir}/epoch_{self.current_epoch}_f1_{score}.pt')
             for i in range(len(self.f1_metrics)):
-                Config.neptune_run_object['/'.join(['metrics', 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
+                Config.neptune_run_object['/'.join(['fold_', str(Config.current_fold), 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
 
         return loss
 
@@ -245,4 +260,4 @@ class TrainModule(pl.LightningModule):
         for l in f1_mean_labels:
             mean+=f1_metrics[l]
 
-        return mean/len(f1_mean_labels),f1_metrics
+        return round(mean/len(f1_mean_labels),3),f1_metrics
