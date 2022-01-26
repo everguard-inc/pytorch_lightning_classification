@@ -17,11 +17,13 @@ from madgrad import MADGRAD
 import random
 from copy import deepcopy
 
+
 def generate_percent(prob = 10):
     if random.randint(0,100) < prob:
         return True
     else:
         return False
+
 
 class CustomDataset(Dataset):
     def __init__(self, df, path, transform = None, unrecognized_transform = None, train = True):
@@ -81,15 +83,14 @@ class CustomDataset(Dataset):
                 labels = CustomDataset.change_labels(labels)
                 augmented = self.unrecognized_transform(image=image)
                 image = augmented['image']
-
         labels = CustomDataset.labels_string_to_int(labels)
         labels = CustomDataset.encode_labels(labels,Config.num_classes)
         augmented = self.transform(image=image)
         image = augmented['image']
-        return {'image':image, 'target': labels}
+        return image,labels
 
 
-def get_train_test_datasets():
+def get_datasets():
     train_df = pd.read_csv(Config.train_df_path)
     val_df = pd.read_csv(Config.val_df_path)
 
@@ -97,21 +98,6 @@ def get_train_test_datasets():
     test_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'),None, False)
 
     return train_dataset, test_dataset
-
-def get_train_val_dataloaders(train_dataset, train_ids, test_ids):
-    train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
-    test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
-
-    train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4, sampler=train_subsampler)
-    valid_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4, sampler=test_subsampler)
-    
-    return train_loader,valid_loader
-
-def get_test_dataloader(test_dataset):
-    test_loader = DataLoader(test_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4)
-
-    return test_loader
-
 
 def get_unrecognized_transform():
     return Config.unrecognized_augs
@@ -125,6 +111,38 @@ def get_transform(phase: str):
             A.Normalize(),
             ToTensorV2(),
         ])
+
+
+def get_metrics(outputs, targets, metrics, conf_th):
+    for i, predicted_labels in enumerate(outputs):
+        target_labels = targets[i]
+        target_labels = CustomDataset.decode_labels(target_labels)
+        predicted_labels = (predicted_labels > conf_th).nonzero().squeeze()
+        try:
+            for label in predicted_labels:
+                if label in target_labels:
+                    metrics[label]['tp']+=1
+                else:
+                    metrics[label]['fp']+=1
+                    metrics[label]['fn']+=1
+        except:
+            ...
+
+    return metrics
+
+def get_average_score(metrics, f1_metrics):
+    for i in range(Config.num_classes):
+        pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
+        recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
+        f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3)   
+
+    f1_mean_labels = [1,4,7]
+    mean = 0
+    for l in f1_mean_labels:
+        mean+=f1_metrics[l]
+
+    return round(mean/len(f1_mean_labels),3),f1_metrics
+
     
 class CustomModel(nn.Module):
     def __init__(self, model_name, pretrained):
@@ -184,16 +202,16 @@ class TrainModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         
-        image = batch['image'].to(Config.device)
-        target = batch['target'].to(Config.device)
+        image = batch[0].to(Config.device)
+        target = batch[1].to(Config.device)
         target = target.float()
         output = self.model(image)
         output = torch.sigmoid(output)
         loss = self.criterion(output, target)
         if batch_idx==0:
             self.reset_metrics()
-        self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
-        score,self.f1_metrics = self.get_average_score(self.metrics,self.f1_metrics)
+        self.metrics = get_metrics(output,target,self.metrics,Config.conf_th)
+        score,self.f1_metrics = get_average_score(self.metrics,self.f1_metrics)
         logs = {'train_loss': loss, 'train_f1': score, 'lr': self.optimizer.param_groups[0]['lr']}
         self.log_dict(
             logs,
@@ -206,8 +224,8 @@ class TrainModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        image = batch['image'].to(Config.device)
-        target = batch['target'].to(Config.device)
+        image = batch[0].to(Config.device)
+        target = batch[1].to(Config.device)
         target = target.float()
         output = self.model(image)
         output = self.model(image)
@@ -230,34 +248,3 @@ class TrainModule(pl.LightningModule):
                 Config.neptune_run_object['/'.join(['fold_', str(Config.current_fold), 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
 
         return loss
-
-
-    def get_metrics(self, outputs, targets, metrics, conf_th):
-        for i, predicted_labels in enumerate(outputs):
-            target_labels = targets[i]
-            target_labels = (target_labels > conf_th).nonzero().squeeze()
-            predicted_labels = (predicted_labels > conf_th).nonzero().squeeze()
-            try:
-                for label in predicted_labels:
-                    if label in target_labels:
-                        metrics[label]['tp']+=1
-                    else:
-                        metrics[label]['fp']+=1
-                        metrics[label]['fn']+=1
-            except:
-                ...
-
-        return metrics
-                
-    def get_average_score(self, metrics, f1_metrics):
-        for i in range(Config.num_classes):
-            pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
-            recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
-            f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3)   
-
-        f1_mean_labels = [1,4,7]
-        mean = 0
-        for l in f1_mean_labels:
-            mean+=f1_metrics[l]
-
-        return round(mean/len(f1_mean_labels),3),f1_metrics
