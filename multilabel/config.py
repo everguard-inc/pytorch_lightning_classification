@@ -20,7 +20,7 @@ class Config:
     num_classes = len(label_names)
     lr = 0.0005
     min_lr = 0.000001
-    num_kfolds = 5
+    num_kfolds = 2
     current_fold = 0
     t_max = 20
     num_epochs = 20
@@ -33,7 +33,8 @@ class Config:
     optimizer = "Madgrad"
     neptune_run_object = None
     neptune_api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI1OTFhZDJkYS01NTI1LTQ5MTktODdjYS04OTE0Y2JmNDIzMDYifQ=="
-    weights_path = 'logs/resnet50/version_0/checkpoints/epoch=22-step=43906.ckpt'
+    weights_path = 'weights/5fold_effnet3/'
+    ffcv_dataset_path = 'ffcv_converted/'
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     augs_index = 0
     unrecognized_augs = Compose([
