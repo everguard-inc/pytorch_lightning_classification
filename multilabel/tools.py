@@ -29,7 +29,7 @@ class CustomDataset(Dataset):
     def __init__(self, df, path, transform = None, unrecognized_transform = None, train = True):
         self.df = df
         self.path = path
-        self.images_path = os.listdir(path)[:2000]
+        self.images_path = os.listdir(path)
         self.transform = transform
         self.unrecognized_transform = unrecognized_transform
         self.train = train

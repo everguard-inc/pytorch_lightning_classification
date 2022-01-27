@@ -50,7 +50,7 @@ class CustomDataset(Dataset):
 def get_train_val_data(images_path,exstension = '*.jpeg'):
     images_list = list(find_files(images_path, exstension))
     random.shuffle(images_list)
-    images_list = images_list[:2000]
+    #images_list = images_list[:2000]
     df = pd.DataFrame([])
 
     for path in images_list:
