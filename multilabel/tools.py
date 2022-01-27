@@ -29,7 +29,7 @@ class CustomDataset(Dataset):
     def __init__(self, df, path, transform = None, unrecognized_transform = None, train = True):
         self.df = df
         self.path = path
-        self.images_path = os.listdir(path)
+        self.images_path = os.listdir(path)[:2000]
         self.transform = transform
         self.unrecognized_transform = unrecognized_transform
         self.train = train
@@ -87,7 +87,7 @@ class CustomDataset(Dataset):
         labels = CustomDataset.encode_labels(labels,Config.num_classes)
         augmented = self.transform(image=image)
         image = augmented['image']
-        return image,labels
+        return {'image':image, 'target': labels}
 
 
 def get_datasets():
@@ -111,37 +111,6 @@ def get_transform(phase: str):
             A.Normalize(),
             ToTensorV2(),
         ])
-
-
-def get_metrics(outputs, targets, metrics, conf_th):
-    for i, predicted_labels in enumerate(outputs):
-        target_labels = targets[i]
-        target_labels = CustomDataset.decode_labels(target_labels)
-        predicted_labels = (predicted_labels > conf_th).nonzero().squeeze()
-        try:
-            for label in predicted_labels:
-                if label in target_labels:
-                    metrics[label]['tp']+=1
-                else:
-                    metrics[label]['fp']+=1
-                    metrics[label]['fn']+=1
-        except:
-            ...
-
-    return metrics
-
-def get_average_score(metrics, f1_metrics):
-    for i in range(Config.num_classes):
-        pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
-        recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
-        f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3)   
-
-    f1_mean_labels = [1,4,7]
-    mean = 0
-    for l in f1_mean_labels:
-        mean+=f1_metrics[l]
-
-    return round(mean/len(f1_mean_labels),3),f1_metrics
 
     
 class CustomModel(nn.Module):
@@ -174,8 +143,8 @@ class TrainModule(pl.LightningModule):
         self.model = model
         self.criterion = nn.BCELoss()
         self.lr = Config.lr
-        
-        self.metrics_file = open(os.path.join(Config.save_log_dir,Config.metrics_file), 'a')
+        self.best_val_f1 = 0
+        self.best_epoch = 0
         self.reset_metrics()
         
     def reset_metrics(self):
@@ -201,37 +170,36 @@ class TrainModule(pl.LightningModule):
         return {'optimizer': self.optimizer, 'lr_scheduler': self.scheduler}
 
     def training_step(self, batch, batch_idx):
-        
-        image = batch[0].to(Config.device)
-        target = batch[1].to(Config.device)
+        image = batch['image'].to(Config.device)
+        target = batch['target'].to(Config.device)
         target = target.float()
         output = self.model(image)
         output = torch.sigmoid(output)
         loss = self.criterion(output, target)
         if batch_idx==0:
             self.reset_metrics()
-        self.metrics = get_metrics(output,target,self.metrics,Config.conf_th)
-        score,self.f1_metrics = get_average_score(self.metrics,self.f1_metrics)
+        self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
+        score,self.f1_metrics = self.get_average_score(self.metrics,self.f1_metrics)
         logs = {'train_loss': loss, 'train_f1': score, 'lr': self.optimizer.param_groups[0]['lr']}
         self.log_dict(
             logs,
             on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
         if batch_idx == Config.num_train_batches-1:
+            self.metrics_file = open(os.path.join(Config.save_log_dir,Config.metrics_file), 'a')
             self.metrics_file.write(f"train epoch {self.current_epoch}: {self.f1_metrics}\n")
+            self.metrics_file.close()
             for i in range(len(self.f1_metrics)):
                 Config.neptune_run_object['/'.join(['metrics', 'train',Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
         return loss
 
     def validation_step(self, batch, batch_idx):
-        image = batch[0].to(Config.device)
-        target = batch[1].to(Config.device)
+        image = batch['image'].to(Config.device)
+        target = batch['target'].to(Config.device)
         target = target.float()
-        output = self.model(image)
         output = self.model(image)
         output = torch.sigmoid(output)
         loss = self.criterion(output, target)
-        
         if batch_idx==0:
             self.reset_metrics()
         self.metrics = self.get_metrics(output,target,self.metrics,Config.conf_th)
@@ -242,9 +210,50 @@ class TrainModule(pl.LightningModule):
             on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
         if batch_idx == Config.num_val_batches-1:
+            self.metrics_file = open(os.path.join(Config.save_log_dir,Config.metrics_file), 'a')
             self.metrics_file.write(f"val epoch {self.current_epoch}: {self.f1_metrics}\n")
-            torch.save(self.model.state_dict(), f'{Config.save_log_dir}/epoch_{self.current_epoch}_f1_{score}.pt')
+            self.metrics_file.close()
+            if Config.save_best:
+                if score>=self.best_val_f1:
+                    torch.save(self.model.state_dict(), f'{Config.save_log_dir}/epoch_{self.current_epoch}_f1_{score}.pt')
+                    if os.path.exists(f'{Config.save_log_dir}/epoch_{self.best_epoch}_f1_{self.best_val_f1}.pt'):
+                        os.remove(f'{Config.save_log_dir}/epoch_{self.best_epoch}_f1_{self.best_val_f1}.pt')
+                    self.best_val_f1 = score
+                    self.best_epoch = self.current_epoch
+            else:
+                torch.save(self.model.state_dict(), f'{Config.save_log_dir}/epoch_{self.current_epoch}_f1_{score}.pt')
+
             for i in range(len(self.f1_metrics)):
-                Config.neptune_run_object['/'.join(['fold_', str(Config.current_fold), 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
+                Config.neptune_run_object['/'.join(['metrics', 'val', Config.label_names[i], 'f1_score'])].log(self.f1_metrics[i])
 
         return loss
+
+    def get_metrics(self, outputs, targets, metrics, conf_th):
+        for i, predicted_labels in enumerate(outputs):
+            target_labels = targets[i]
+            target_labels = (target_labels > conf_th).nonzero().squeeze()
+            predicted_labels = (predicted_labels > conf_th).nonzero().squeeze()
+            try:
+                for label in predicted_labels:
+                    if label in target_labels:
+                        metrics[label]['tp']+=1
+                    else:
+                        metrics[label]['fp']+=1
+                        metrics[label]['fn']+=1
+            except:
+                ...
+
+        return metrics
+
+    def get_average_score(self, metrics, f1_metrics):
+        for i in range(Config.num_classes):
+            pr_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fp'] + 1e-9)
+            recall_05 = metrics[i]['tp'] / (metrics[i]['tp'] + metrics[i]['fn'] + 1e-9)
+            f1_metrics[i] = round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3)   
+
+        f1_mean_labels = [0,1,3,4,6,7]
+        mean = 0
+        for l in f1_mean_labels:
+            mean+=f1_metrics[l]
+
+        return round(mean/len(f1_mean_labels),3),f1_metrics

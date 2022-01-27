@@ -71,7 +71,6 @@ def train_simple(train_dataset,val_dataset):
     
 
 if __name__ == "__main__":
-    
     run = neptune.init(
     project="ever/rlg",
     api_token=Config.neptune_api_token
@@ -84,7 +83,6 @@ if __name__ == "__main__":
     run['augmentations_configs'] = str(get_transform('unrecognized_augs'))+str(get_transform('train'))
     
     Config.neptune_run_object = run
-    
 
     train_dataset, val_dataset = get_datasets()
 

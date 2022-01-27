@@ -10,6 +10,7 @@ class Config:
     val_df_path = '/home/rodion/crops/dataset_ppe/ann/val.csv'
     save_dir = 'logs/'
     save_log_dir = None
+    save_best = True
     metrics_file = 'metrics.txt'
     seed = 42
     model_name = 'efficientnet-b3'
@@ -20,7 +21,7 @@ class Config:
     num_classes = len(label_names)
     lr = 0.0005
     min_lr = 0.000001
-    num_kfolds = 2
+    num_kfolds = 1
     current_fold = 0
     t_max = 20
     num_epochs = 20
@@ -92,5 +93,4 @@ class Config:
             A.Normalize(),
             ToTensorV2(),
         ]),
-
     ]
