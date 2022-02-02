@@ -47,7 +47,7 @@ class CustomDataset(Dataset):
         image = augmented['image']
         return {'image':image, 'target': label}
 
-def get_train_val_data(images_path,exstension = '*.jpeg'):
+def get_train_val_data(images_path,exstension = '*.jpg'):
     images_list = list(find_files(images_path, exstension))
     random.shuffle(images_list)
     #images_list = images_list[:2000]
