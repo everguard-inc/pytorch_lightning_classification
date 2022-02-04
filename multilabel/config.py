@@ -4,8 +4,8 @@ from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 
 class Config:
-    train_images_path = '/home/rodion/crops/dataset_ppe/crops/train'
-    val_images_path = '/home/rodion/crops/dataset_ppe/crops/val'
+    train_images_path = '/home/rodion/crops/dataset_ppe/crops'
+    val_images_path = '/home/rodion/crops/dataset_ppe/crops'
     train_df_path = '/home/rodion/crops/dataset_ppe/ann/train.csv'
     val_df_path = '/home/rodion/crops/dataset_ppe/ann/val.csv'
     save_dir = 'logs/'
@@ -39,6 +39,7 @@ class Config:
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     unrec_prob = 0
     augs_index = 0
+
     unrecognized_augs = Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
             A.RandomSunFlare(flare_roi=(0.3, 0.1, 0.7, 0.3),angle_lower=0,angle_upper=0.2,num_flare_circles_lower=1,num_flare_circles_upper=5, src_radius=200,src_color=(255, 255, 255),always_apply=False,p=1), 

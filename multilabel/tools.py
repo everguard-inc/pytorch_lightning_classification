@@ -26,16 +26,16 @@ def generate_percent(prob = Config.unrec_prob):
 
 
 class CustomDataset(Dataset):
-    def __init__(self, df, path, transform = None, unrecognized_transform = None, train = True):
-        self.df = df
+    def __init__(self, images, labels, path, transform = None, unrecognized_transform = None, train = True):
+        self.images = images
+        self.labels = labels
         self.path = path
-        self.images_path = os.listdir(path)
         self.transform = transform
         self.unrecognized_transform = unrecognized_transform
         self.train = train
 
     def __len__(self):
-        return len(self.images_path)
+        return len(self.images)
 
     @staticmethod
     def encode_labels(labels,num_classes):
@@ -75,8 +75,8 @@ class CustomDataset(Dataset):
         return new_labels
 
     def __getitem__(self, idx):
-        labels = self.df[self.df['image_path']==os.path.join(self.path.split('/')[-1],self.images_path[idx])][['harness','hardhat','vest','person_in_bucket']].values.squeeze()
-        image = cv2.imread(os.path.join(self.path,self.images_path[idx]))
+        labels = self.labels[idx]
+        image = cv2.imread(os.path.join(self.path,self.images[idx]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.train:
             if generate_percent():
@@ -94,8 +94,13 @@ def get_datasets():
     train_df = pd.read_csv(Config.train_df_path)
     val_df = pd.read_csv(Config.val_df_path)
 
-    train_dataset = CustomDataset(train_df, Config.train_images_path, get_transform('train'),get_unrecognized_transform(),True)
-    test_dataset = CustomDataset(val_df, Config.val_images_path ,get_transform('valid'),None, False)
+    train_images = train_df['image_path'].values
+    train_labels = train_df[['harness','hardhat','vest','person_in_bucket']].values
+    val_images = val_df['image_path'].values
+    val_labels = val_df[['harness','hardhat','vest','person_in_bucket']].values
+
+    train_dataset = CustomDataset(train_images, train_labels, Config.train_images_path, get_transform('train'),get_unrecognized_transform(),True)
+    test_dataset = CustomDataset(val_images, val_labels, Config.val_images_path ,get_transform('valid'),None, False)
 
     return train_dataset, test_dataset
 
