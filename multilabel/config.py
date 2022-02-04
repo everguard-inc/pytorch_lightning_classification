@@ -37,6 +37,7 @@ class Config:
     weights_path = 'weights/5fold_effnet3/'
     ffcv_dataset_path = 'ffcv_converted/'
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    unrec_prob = 0
     augs_index = 0
     unrecognized_augs = Compose([
             A.Resize(height=img_size['height'], width=img_size['width']),
@@ -50,6 +51,7 @@ class Config:
             A.HorizontalFlip(p=0.5),
             A.HueSaturationValue(always_apply=False, p=0.33, hue_shift_limit=(-5, 5), sat_shift_limit=(-5, 5), val_shift_limit=(-150, 150)),
             A.ElasticTransform(always_apply=False, p=0.1, alpha=4, sigma=100, alpha_affine=10, interpolation=1, border_mode=1),
+            A.Downscale(p=0.15),  
             A.MedianBlur(always_apply=False, p=0.25, blur_limit=(11, 21)),
             A.Normalize(),
             ToTensorV2(),

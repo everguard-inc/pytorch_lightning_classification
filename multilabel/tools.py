@@ -18,7 +18,7 @@ import random
 from copy import deepcopy
 
 
-def generate_percent(prob = 10):
+def generate_percent(prob = Config.unrec_prob):
     if random.randint(0,100) < prob:
         return True
     else:

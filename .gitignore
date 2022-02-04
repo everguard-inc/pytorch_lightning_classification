@@ -16,3 +16,5 @@ multilabel/weights
 multilabel/metrics
 multilabel/brightness_contrast
 multiclass/.neptune
+multilabel/augs.ipynb
+multilabel/augs2.ipynb
