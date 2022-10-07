@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 import os, random
 from sklearn.metrics import f1_score
 import fnmatch
-import torchmetrics
 from torch.utils.data import Dataset, DataLoader
-from albumentations.core.composition import Compose, OneOf
+from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 from efficientnet_pytorch import EfficientNet
 from config import Config
@@ -42,34 +41,59 @@ class CustomDataset(Dataset):
         label = self.labels[idx]
         
         image = cv2.imread(image_path)[:,:,:]
-        #image = np.expand_dims(image, axis=-1)
-        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         augmented = self.transform(image=image)
         image = augmented['image']
         return {'image':image, 'target': label}
     
     
 class CustomDataset1(Dataset):
-    def __init__(self, images_root, df, label_names, transform=None):
-        self.images_root = images_root
+    def __init__(self, config: Config, df, transform=None, train = True):
+        if train:
+            self.images_root = config.train_image_path
+            self.og_mask_root_path = config.og_train_mask_path
+            self.model_mask_root_path = config.model_train_mask_path
+            self.ogs = df['og'].values
+        else:
+            self.images_root = config.val_image_path
+            self.model_mask_root_path = config.model_val_mask_path
+
         self.images_path = df['image_path'].values
         self.labels = df['cobbling'].values
         self.transform = transform
-        self.label_names = label_names
+        self.label_names = config.label_names
+        self.train = train
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        image_path = self.images_path[idx].split('/')[-1][:-4]+'.png'
-        image_path = os.path.join(self.images_root,image_path)
-        label = self.label_names[self.labels[idx]]
+        image_path = self.images_path[idx]
+        if self.train:
+            if self.ogs[idx]:
+                mask_path = os.path.join(self.og_mask_root_path,image_path[:-3]+"png")
+            else:
+                mask_path = os.path.join(self.model_mask_root_path,image_path[:-3]+"png")
+            image_path = os.path.join(self.images_root,image_path)
+            
+        else:
+            mask_path = os.path.join(self.model_mask_root_path,image_path[:-3]+"png")
+            image_path = os.path.join(self.images_root,image_path)
 
+        label = self.label_names[self.labels[idx]]
         image = cv2.imread(image_path)[:,:,:]*255
-        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        augmented = self.transform(image=image)
-        image = augmented['image']
-        return {'image':image, 'target': label}
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        mask = cv2.imread(mask_path)[:,:,0]
+        mask_image = np.zeros(image.shape,dtype = np.uint8)
+        pixels = np.argwhere(mask == 1)
+        for p in pixels:
+            try:
+                mask_image[p[0],p[1],:] = image[p[0],p[1],:]
+            except:
+                ...
+        augmented = self.transform(image=mask_image)
+        mask_image = augmented['image']
+        return {'image':mask_image, 'target': label, 'path': self.images_path[idx].split('/')[-1][:-4]+'.jpg'}
 
 
 def get_train_val_data1(images_path,exstension = '*.jpg'):
@@ -89,7 +113,6 @@ def get_train_val_data1(images_path,exstension = '*.jpg'):
     print("TRUE class = ",df[df["labels"] == 0].shape)
     print("FALSE class = ",df[df["labels"] == 1].shape)
     
-    
     df_class_0 = df[df["labels"] == 0]
     df_class_1 = df[df["labels"] == 1]
     
@@ -99,7 +122,6 @@ def get_train_val_data1(images_path,exstension = '*.jpg'):
     
     print("TRUE class oversampled = ",df[df["labels"] == 0].shape)
     print("FALSE class oversampled = ",df[df["labels"] == 1].shape)
-    
     
     sfk = StratifiedKFold(Config.n_fold)
     for train_idx, valid_idx in sfk.split(df['image'], df['labels']):
@@ -116,27 +138,44 @@ def get_train_val_data1(images_path,exstension = '*.jpg'):
     return train_loader, valid_loader
 
 
+def convert_train_df(df):
+    df['image_path'] = df['image_path'].apply(lambda x: x.split('/')[-1])
+    df.loc[:,'og'] = True
+    df_copy = df.copy()
+    df_copy.loc[:,'og'] = False
+    df = df.append(df_copy, ignore_index=True)
+    df = df.sample(frac=1)
+    return df
+
+def convert_val_df(df):
+    df['image_path'] = df['image_path'].apply(lambda x: x.split('/')[-1])
+    return df
+
+
 def get_train_val_data2():
     df = pd.read_csv(Config.train_labels_path)
+    df = convert_train_df(df)
     
     print("cobbling class = ",df[df["cobbling"] == 'cobbling'].shape)
     print("no_cobbling class = ",df[df["cobbling"] == 'no_cobbling'].shape)
-    
     
     df_class_0 = df[df["cobbling"] == 'cobbling']
     df_class_1 = df[df["cobbling"] == 'no_cobbling']
     
     df_class_0_under = df_class_0.sample(int(len(df_class_1)), replace=True)
     df = pd.concat([df_class_0_under, df_class_1], axis=0)
-    df = df.sample(n = len(df))
     
     print("cobbling class oversampled= ",df[df["cobbling"] == 'cobbling'].shape)
     print("no_cobbling oversampled = ",df[df["cobbling"] == 'no_cobbling'].shape)
     
     val_df = pd.read_csv(Config.val_labels_path)
+    val_df = convert_val_df(val_df)
+
+    print("cobbling class = ",val_df[val_df["cobbling"] == 'cobbling'].shape)
+    print("no_cobbling class = ",val_df[val_df["cobbling"] == 'no_cobbling'].shape)
     
-    train_dataset = CustomDataset1(Config.train_images_path, df, Config.label_names, get_transform('train'))
-    valid_dataset = CustomDataset1(Config.val_images_path, val_df, Config.label_names, get_transform('valid'))
+    train_dataset = CustomDataset1(Config(), df, get_transform('train'), True)
+    valid_dataset = CustomDataset1(Config(), val_df, get_transform('valid'), False)
 
     train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=False)
     valid_loader = DataLoader(valid_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=4)
@@ -149,6 +188,9 @@ def get_transform(phase: str):
         return Config.train_augs[Config.augs_index]
     else:
         return Compose([
+            A.HorizontalFlip(p=0.2),
+            A.ShiftScaleRotate(p=0.2),
+            A.Rotate(p=0.2, limit=45),
             A.Resize(height=Config.img_size['height'], width=Config.img_size['width']),
             A.Normalize(),#mean = (0.485,), std = (0.229,)),
             ToTensorV2(),
@@ -214,6 +256,7 @@ class TrainModule(pl.LightningModule):
         image = batch['image'].to(Config.device)
         target = batch['target'].to(Config.device)
         target = target.long()
+        #print(image.shape)
         output = self.model(image)
         loss = self.criterion(output, target)
         pt = torch.exp(-loss)
@@ -256,6 +299,7 @@ class TrainModule(pl.LightningModule):
         image = batch['image'].to(Config.device)
         target = batch['target'].to(Config.device)
         target = target.long()
+        #print(image.shape)
         output = self.model(image)
         loss = self.criterion(output, target)
         pt = torch.exp(-loss)

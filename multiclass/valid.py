@@ -1,4 +1,4 @@
-from tools import CustomModel, TrainModule, get_train_val_data
+from tools import CustomModel, TrainModule, get_train_val_data2
 from config import Config
 import torch
 from sklearn.metrics import f1_score
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     model.load_state_dict(state_dict2)
     model = model.to(Config.device)
     model.eval()
-    train_loader, valid_loader = get_train_val_data(Config.images_path,Config.image_extension)
+    train_loader, valid_loader = get_train_val_data2(Config.images_path,Config.image_extension)
     predicts, targets = [], []
     with torch.no_grad():
         for batch in tqdm(valid_loader):

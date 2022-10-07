@@ -4,9 +4,13 @@ from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 
 class Config:
-    train_images_path = '/home/eg/rodion/dataset_cobbling/train/masks/cobbling'
+    train_image_path = '/home/eg/rodion/dataset_cobbling/train/img'
+    og_train_mask_path = '/home/eg/rodion/dataset_cobbling/train/masks/cobbling'
+    model_train_mask_path = '/home/eg/rodion/dataset_cobbling/train/model/cobbling'
     train_labels_path = '/home/eg/rodion/dataset_cobbling/classification_ann/train.csv'
-    val_images_path = '/home/eg/rodion/dataset_cobbling/val/masks/cobbling'
+    val_image_path = '/home/eg/rodion/dataset_cobbling/val/img'
+    model_val_mask_path = '/home/eg/rodion/dataset_cobbling/val/model/cobbling'
+    model_train_mask_path = '/home/eg/rodion/dataset_cobbling/train/model/cobbling'
     val_labels_path = '/home/eg/rodion/dataset_cobbling/classification_ann/val.csv'
     save_dir = 'logs/'
     save_log_dir = None
@@ -27,7 +31,7 @@ class Config:
     accum = 1
     precision = 32
     n_fold = 5
-    weights_path = ''
+    weights_path = '/home/eg/rodion/pytorch_lightning_classification/multiclass/logs/epoch_51_f1_0.951.pt'
     neptune_run_object = None
     neptune_api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5YmU0ZjcyOC00ZmQyLTRjY2QtYTE2MS04YzE1NTc0ZDMxNmYifQ=="
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -39,12 +43,11 @@ class Config:
             A.Resize(height=img_size['height'], width=img_size['width']),
             A.HorizontalFlip(p=0.5),
             A.ShiftScaleRotate(p=0.5),
-            A.Rotate(p=0.5, limit=90),
-            A.VerticalFlip(p=0.5),
-            #A.HueSaturationValue(always_apply=False, p=0.3, hue_shift_limit=(-5, 5), sat_shift_limit=(-5, 5), val_shift_limit=(-150, 150)),
+            A.Rotate(p=0.25, limit=45),
+            A.HueSaturationValue(always_apply=False, p=0.3, hue_shift_limit=(-5, 5), sat_shift_limit=(-5, 5), val_shift_limit=(-150, 150)),
             A.ElasticTransform(always_apply=False, p=0.3, alpha=4, sigma=100, alpha_affine=10, interpolation=1, border_mode=1),
-            #A.MedianBlur(always_apply=False, p=0.2, blur_limit=(11, 21)),
-            #A.Downscale(p=0.1),
+            A.MedianBlur(always_apply=False, p=0.3, blur_limit=(11, 21)),
+            A.Downscale(p=0.2),
             A.Normalize(),#mean = (0.485,), std = (0.229,)),
             ToTensorV2(),
         ])
