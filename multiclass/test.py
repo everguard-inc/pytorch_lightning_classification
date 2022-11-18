@@ -1,4 +1,5 @@
-from tools import CustomModel, TrainModule, get_train_val_data2
+from dataset import CustomModel, get_train_val_data
+from tools import CustomModel
 from config import Config
 import torch
 from sklearn.metrics import f1_score
@@ -9,9 +10,9 @@ import cv2
 import os
 
 if __name__ == "__main__":
-    
-    model = CustomModel(model_name=Config.model_name, pretrained=False)
-    state_dict = torch.load(Config.weights_path)
+    config = Config()
+    model = CustomModel(model_name=Config.model_name, config = config, pretrained=False)
+    state_dict = torch.load(config.weights_path)
     state_dict2 = OrderedDict()
     for item in state_dict:
         state_dict2.update({item[:]:state_dict[item]})
@@ -19,11 +20,11 @@ if __name__ == "__main__":
     model = model.to(Config.device)
     model.eval()
     train_loader, valid_loader = get_train_val_data2()
-    label_names = {v: k for k, v in Config.label_names.items()}
+    label_names = config.label_names
     predicts, targets = [], []
     with torch.no_grad():
         for b_i,batch in enumerate(valid_loader):
-            data = batch['image'].to(Config.device)
+            data = batch['image'].to(config.device)
             target = batch['target']
             paths = batch['path']
             output = model(data)
