@@ -14,11 +14,11 @@ class Config:
     val_remote_masks_root = '/media/data2/rb/remote_cable_segm_model/val_masks/remote'
     val_labels_root = '/media/data2/rb/dataset_person_remote/val/labels'
     val_df_path = '/media/data2/rb/dataset_person_remote/val/df.csv'
-    prepare_dataset = True
+    prepare_dataset = False
     save_log_dir = 'logs/'
     image_extension = '*.jpg'
     seed = 42
-    model_name = 'resnet50'#'efficientnet-b3'
+    model_name = 'resnet34'
     pretrained = True
     save_best = True
     metrics_file = 'metrics.txt'
@@ -29,8 +29,8 @@ class Config:
     min_lr = 1e-6
     t_max = 20
     num_epochs = 100
-    batch_size = 25
-    img_size = {'height':736, 'width':1280}
+    batch_size = 12
+    img_size = {'height':552, 'width':960}
     accum = 1
     precision = 32
     n_fold = 5
@@ -40,7 +40,7 @@ class Config:
     neptune_api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmMWVmOTM0My04NzAwLTQzMWYtOWMyOC00MmViYTMwNGQ1YmYifQ=="
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     num_val_batches = None
-    optimizer = "Adam"
+    optimizer = "Madgrad"
     augs_index = 0
     train_augs = [
         Compose([

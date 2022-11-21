@@ -5,4 +5,5 @@ asyncio
 opencv-python
 albumentations
 efficientnet_pytorch
+timm
 madgrad

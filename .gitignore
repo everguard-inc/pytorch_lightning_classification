@@ -1,5 +1,6 @@
 multilabel/logs/
 multiclass/logs/
+pl_env
 __pycache__/
 .ipynb_checkpoints
 multilabel/metrics.txt

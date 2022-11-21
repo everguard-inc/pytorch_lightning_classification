@@ -16,7 +16,10 @@ class CustomModel(nn.Module):
     def __init__(self, model_name='resnet50', config = Config(), pretrained=True):
         super().__init__()
         self.model = timm.create_model(model_name, pretrained = pretrained)
-        self.model.fc = nn.Linear(self.model.fc.in_features,config.num_classes)
+        if 'resnet' in model_name:
+            self.model.fc = nn.Linear(self.model.fc.in_features,config.num_classes)
+        else:
+            self.model.classifier = nn.Linear(self.model.classifier.in_features,config.num_classes)
 
     def forward(self, x):
         x = self.model(x)

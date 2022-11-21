@@ -6,6 +6,7 @@ from dataset import get_train_val_data, get_transform
 from tools import CustomModel, TrainModule
 from config import Config
 import argparse
+import torch
 import neptune.new as neptune
 from datetime import datetime
 
