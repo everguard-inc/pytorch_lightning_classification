@@ -130,16 +130,13 @@ class TrainModule(pl.LightningModule):
             recall_05 = metrics_per_class[i]['tp'] / (metrics_per_class[i]['tp'] + metrics_per_class[i]['fn'] + 1e-9)
             f1_per_class.append(round(2 * pr_05 * recall_05/(pr_05 + recall_05 + 1e-9),3))
         
-        mean_f1 = round(np.array(f1_per_class).mean(),3)
+        mean_f1 = round(np.array(f1_per_class[:2]).mean(),3)
         logs = {'valid_loss': loss, 'valid_f1': mean_f1}
         self.log_dict(
             logs,
             on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
         if batch_idx == self.config.num_val_batches-1:
-            #self.metrics_file = open(os.path.join(Config.save_log_dir,Config.metrics_file), 'a')
-            #self.metrics_file.write(f"val epoch {self.current_epoch}: {metrics}\n")
-            #self.metrics_file.close()
             if self.config.save_best:
                 if mean_f1>=self.best_val_f1:
                     torch.save(self.model.state_dict(), f'{self.config.save_log_dir}/epoch_{self.current_epoch}_f1_{mean_f1}.pt')

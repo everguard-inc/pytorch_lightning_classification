@@ -20,11 +20,11 @@ class Config:
     'hardhat_unrecognized','in_vest','not_in_vest','vest_unrecognized','person_in_bucket','person_not_in_bucket']
     num_classes = len(label_names)
     lr = 0.0005
-    min_lr = 0.000001
+    min_lr = 0.000005
     num_kfolds = 1
     current_fold = 0
     t_max = 20
-    num_epochs = 20
+    num_epochs = 50
     batch_size = 30
     accum = 1
     precision = 32

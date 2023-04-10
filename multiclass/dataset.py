@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import os, random
+from tqdm import tqdm
 import albumentations as A
 from config import Config
 from typing import NoReturn
@@ -39,6 +40,7 @@ class CustomDataset(Dataset):
             )
             
         self.df = pd.read_csv(df_path)
+
         if train:
             self.df = CustomDataset.oversample(self.df, config)
 
@@ -63,16 +65,14 @@ class CustomDataset(Dataset):
         labels_root,
         df_path
     ) -> NoReturn:
-        df = pd.DataFrame(
-            columns=[
-                'image_path',
-                'cabble_mask_path',
-                'remote_mask_path',
-                'x1', 'y1', 'x2', 'y2',
-                'label'
-                ]
-            )
-        for label_file_path in os.listdir(labels_root):
+        df = {
+            'image_path': [],
+            'cabble_mask_path': [],
+            'remote_mask_path': [],
+            'x1':[], 'y1':[], 'x2':[], 'y2':[],
+            'label':[]
+        }
+        for label_file_path in tqdm(os.listdir(labels_root)):
             image_path = os.path.join(images_root, label_file_path[:-3] + 'jpg')
             img_size = cv2.imread(image_path).shape[:2]
             cabble_mask_path = os.path.join(cabble_masks_root, label_file_path[:-3] + 'png')
@@ -84,18 +84,16 @@ class CustomDataset(Dataset):
                 y1 = int((float(yc) - float(h) / 2) * img_size[0])
                 x2 = int((float(xc) + float(w) / 2) * img_size[1])
                 y2 = int((float(yc) + float(h) / 2) * img_size[0])
-                df = df.append(
-                    {
-                        'image_path': image_path, 
-                        'cabble_mask_path': cabble_mask_path,
-                        'remote_mask_path': remote_mask_path,
-                        'x1': x1,
-                        'y1': y1,
-                        'x2': x2,
-                        'y2': y2,
-                        'label': int_label
-                    }, ignore_index=True)
+                df['image_path'].append(image_path)
+                df['cabble_mask_path'].append(cabble_mask_path)
+                df['remote_mask_path'].append(remote_mask_path)
+                df['x1'].append(x1)
+                df['y1'].append(y1)
+                df['x2'].append(x2)
+                df['y2'].append(y2)
+                df['label'].append(int(int_label))
         
+        df = pd.DataFrame(df)
         df.to_csv(df_path,index=False)
         
     @staticmethod

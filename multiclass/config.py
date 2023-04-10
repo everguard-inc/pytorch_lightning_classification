@@ -4,16 +4,16 @@ from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 
 class Config:
-    train_images_root = '/media/data2/rb/dataset_person_remote/train/images'
-    train_cabble_masks_root = '/media/data2/rb/remote_cable_segm_model/train_masks/cable'
-    train_remote_masks_root = '/media/data2/rb/remote_cable_segm_model/train_masks/remote'
-    train_labels_root = '/media/data2/rb/dataset_person_remote/train/labels'
-    train_df_path = '/media/data2/rb/dataset_person_remote/train/df.csv'
-    val_images_root = '/media/data2/rb/dataset_person_remote/val/images'
-    val_cabble_masks_root = '/media/data2/rb/remote_cable_segm_model/val_masks/cable'
-    val_remote_masks_root = '/media/data2/rb/remote_cable_segm_model/val_masks/remote'
-    val_labels_root = '/media/data2/rb/dataset_person_remote/val/labels'
-    val_df_path = '/media/data2/rb/dataset_person_remote/val/df.csv'
+    train_images_root = '/home/rb/dataset_person_remote/train/images'
+    train_cabble_masks_root = '/home/rb/cabble_remote_masks/masks/train/cable'
+    train_remote_masks_root = '/home/rb/cabble_remote_masks/masks/train/remote'
+    train_labels_root = '/home/rb/dataset_person_remote/train/labels'
+    train_df_path = '/home/rb/dataset_person_remote/train_df.csv'
+    val_images_root = '/home/rb/dataset_person_remote/val/images'
+    val_cabble_masks_root = '/home/rb/cabble_remote_masks/masks/val/cable'
+    val_remote_masks_root = '/home/rb/cabble_remote_masks/masks/val/remote'
+    val_labels_root = '/home/rb/dataset_person_remote/val/labels'
+    val_df_path = '/home/rb/dataset_person_remote/val_df.csv'
     prepare_dataset = False
     save_log_dir = 'logs/'
     image_extension = '*.jpg'
@@ -36,8 +36,8 @@ class Config:
     n_fold = 5
     weights_path = '/home/eg/rodion/pytorch_lightning_classification/multiclass/logs/epoch_51_f1_0.951.pt'
     neptune_run_object = None
-    neptune_project = "colabuserovych2/cabble-remote"
-    neptune_api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmMWVmOTM0My04NzAwLTQzMWYtOWMyOC00MmViYTMwNGQ1YmYifQ=="
+    neptune_project = "platezhkina13/nucor-remote-cable"
+    neptune_api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3MWU0OTI0ZC00MjlkLTRmYjktYTc5Yi0yOGUzZjVjZGQzZGUifQ=="
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     num_val_batches = None
     optimizer = "Madgrad"

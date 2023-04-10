@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
     config = Config()
 
-    run = neptune.init(
+    run = neptune.init_run(
     project=config.neptune_project,
     api_token=config.neptune_api_token
     )
@@ -44,7 +44,6 @@ if __name__ == "__main__":
 
     trainer = Trainer(
         max_epochs=Config.num_epochs,
-        gpus=1,
         accumulate_grad_batches=Config.accum,
         precision=Config.precision,
         callbacks=[EarlyStopping(monitor='valid_loss', patience=20, mode='min')],
